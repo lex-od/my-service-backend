@@ -1,4 +1,11 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Company } from 'src/companies/entities/company.entity';
 
 @Entity('services')
 export class Service {
@@ -11,6 +18,10 @@ export class Service {
   @Column('decimal')
   price: number;
 
-  @Column()
-  company_id: number;
+  @Column({ name: 'company_id' })
+  companyId: number;
+
+  @ManyToOne(() => Company, (company) => company.services)
+  @JoinColumn({ name: 'company_id' })
+  company: Company;
 }
