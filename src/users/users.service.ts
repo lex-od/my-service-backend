@@ -20,7 +20,18 @@ export class UsersService {
     return this.usersRepository.find();
   }
 
-  async findOne(id: number) {
+  async findOneByEmail(email: string, options?: { throwIfNotFound?: boolean }) {
+    const mergedOptions = { throwIfNotFound: true, ...options };
+
+    const user = await this.usersRepository.findOneBy({ email });
+
+    if (!user && mergedOptions.throwIfNotFound) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+    return user;
+  }
+
+  async findOneById(id: number) {
     const user = await this.usersRepository.findOneBy({ id });
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
@@ -28,7 +39,7 @@ export class UsersService {
     return user;
   }
 
-  async findOneWithCompanies(id: number) {
+  async findOneByIdWithCompanies(id: number) {
     const user = await this.usersRepository.findOne({
       where: { id },
       relations: {

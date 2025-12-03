@@ -9,6 +9,9 @@ export class User {
   @Column()
   email: string;
 
+  @Column()
+  password: string;
+
   @OneToMany(() => Company, (company) => company.user)
   companies: Company[];
 }

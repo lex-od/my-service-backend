@@ -28,12 +28,12 @@ export class UsersController {
 
   @Get('current/:id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.findOne(id);
+    return this.usersService.findOneById(id);
   }
 
   @Get('current/:id/with-companies')
   findOneWithCompanies(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.findOneWithCompanies(id);
+    return this.usersService.findOneByIdWithCompanies(id);
   }
 
   @Patch('current/:id')
