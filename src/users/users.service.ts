@@ -20,12 +20,13 @@ export class UsersService {
     return this.usersRepository.find();
   }
 
-  async findOneByEmail(email: string, options?: { throwIfNotFound?: boolean }) {
-    const mergedOptions = { throwIfNotFound: true, ...options };
-
+  async findOneByEmail(
+    email: string,
+    { throwIfNotFound = true }: { throwIfNotFound?: boolean } = {},
+  ) {
     const user = await this.usersRepository.findOneBy({ email });
 
-    if (!user && mergedOptions.throwIfNotFound) {
+    if (!user && throwIfNotFound) {
       throw new NotFoundException(`User with email ${email} not found`);
     }
     return user;
