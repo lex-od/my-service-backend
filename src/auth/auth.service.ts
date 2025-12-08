@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { UsersService } from 'src/users/users.service';
-import { LocalAuthGuardUser } from './local-auth.guard';
+import { type LocalAuthGuardUser } from './local.strategy';
+import { type JwtPayload } from './jwt.strategy';
 
 @Injectable()
 export class AuthService {
@@ -11,7 +12,10 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, pass: string) {
+  async validateUser(
+    email: string,
+    pass: string,
+  ): Promise<LocalAuthGuardUser | null> {
     const user = await this.usersService.findOneByEmail(email, {
       throwIfNotFound: false,
     });
@@ -28,7 +32,10 @@ export class AuthService {
   }
 
   login(user: LocalAuthGuardUser) {
-    const payload = { email: user.email, sub: user.id };
+    const payload: JwtPayload = {
+      email: user.email,
+      sub: user.id,
+    };
     return {
       access_token: this.jwtService.sign(payload),
     };
