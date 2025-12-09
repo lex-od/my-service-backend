@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { UsersService } from 'src/users/users.service';
-import { type LocalAuthGuardUser } from './local.strategy';
-import { type JwtPayload } from './jwt.strategy';
+import { type LocalAuthGuardUser } from './local';
+import { type JwtPayload } from './jwt';
 
 @Injectable()
 export class AuthService {

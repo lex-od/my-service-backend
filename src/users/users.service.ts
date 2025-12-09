@@ -32,14 +32,6 @@ export class UsersService {
     return user;
   }
 
-  async findOneById(id: number) {
-    const user = await this.usersRepository.findOneBy({ id });
-    if (!user) {
-      throw new NotFoundException(`User #${id} not found`);
-    }
-    return user;
-  }
-
   async findOneByIdWithCompanies(id: number) {
     const user = await this.usersRepository.findOne({
       where: { id },
@@ -50,7 +42,7 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
     }
-    return user;
+    return this.purifyUser(user);
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {
@@ -59,5 +51,12 @@ export class UsersService {
 
   remove(id: number) {
     return `This action removes a #${id} user`;
+  }
+
+  private purifyUser(user: User | null) {
+    if (!user) return user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...restUser } = user;
+    return restUser;
   }
 }

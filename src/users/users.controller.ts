@@ -6,15 +6,21 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
+import { AuthService } from 'src/auth/auth.service';
+import { JwtAuthGuard, type JwtAuthGuardUser } from 'src/auth/jwt';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private authService: AuthService,
+  ) {}
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
@@ -26,14 +32,11 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
-  @Get('current/:id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.findOneById(id);
-  }
-
-  @Get('current/:id/with-companies')
-  findOneWithCompanies(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.findOneByIdWithCompanies(id);
+  @UseGuards(JwtAuthGuard)
+  @Get('current/with-companies')
+  getCurrentWithCompanies(@Request() req: Express.Request) {
+    const user = req.user as JwtAuthGuardUser;
+    return this.usersService.findOneByIdWithCompanies(user.id);
   }
 
   @Patch('current/:id')
