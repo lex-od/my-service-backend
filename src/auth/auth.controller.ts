@@ -1,4 +1,12 @@
-import { Controller, Request, Post, UseGuards, Body } from '@nestjs/common';
+import {
+  Controller,
+  Request,
+  Post,
+  UseGuards,
+  Body,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { type LocalAuthGuardUser, LocalAuthGuard } from './local';
 import { JwtAuthGuard, JwtAuthGuardUser } from './jwt';
@@ -19,16 +27,16 @@ export class AuthController {
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Body('refresh_token') refreshToken: string) {
     await this.authService.logout(refreshToken);
-    return { ok: true };
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout-all')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async logoutAll(@Request() req: Express.Request) {
     const user = req.user as JwtAuthGuardUser;
     await this.authService.logoutAll(user.id);
-    return { ok: true };
   }
 }

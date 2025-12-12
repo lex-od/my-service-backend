@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
-import { RefreshToken } from 'src/auth/refresh-token.entity';
+import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 
 @Entity('users')
 export class User {

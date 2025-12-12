@@ -7,7 +7,7 @@ import { ServicesModule } from './services/services.module';
 import { User } from './users/entities/user.entity';
 import { Company } from './companies/entities/company.entity';
 import { Service } from './services/entities/service.entity';
-import { RefreshToken } from './auth/refresh-token.entity';
+import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { AuthModule } from './auth/auth.module';
 
 @Module({

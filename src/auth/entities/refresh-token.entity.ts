@@ -6,6 +6,7 @@ import {
   Index,
   CreateDateColumn,
   JoinColumn,
+  RelationId,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 
@@ -20,9 +21,12 @@ export class RefreshToken {
 
   @ManyToOne(() => User, (user) => user.refreshTokens, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  @Index()
+  user?: User;
+  @RelationId((rt: RefreshToken) => rt.user)
+  userId: number;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   @Column({ name: 'expires_at', type: 'timestamptz' })

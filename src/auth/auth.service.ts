@@ -7,22 +7,29 @@ import { Repository } from 'typeorm';
 import { UsersService } from 'src/users/users.service';
 import { type LocalAuthGuardUser } from './local';
 import { type JwtPayload } from './jwt';
-import { RefreshToken } from './refresh-token.entity';
-import { generateRefreshToken, hashToken } from './token.utils';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { generateRefreshToken, hashRefreshToken } from './auth.utils';
 
 @Injectable()
 export class AuthService {
+  private readonly refreshPepper: string;
+  private readonly refreshExpiresInMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
     @InjectRepository(RefreshToken)
     private refreshTokenRepository: Repository<RefreshToken>,
-  ) {}
+  ) {
+    this.refreshPepper = this.configService.get(
+      'REFRESH_TOKEN_PEPPER',
+    ) as string;
+  }
 
-  async validateUser(
+  async validateUserCredentials(
     email: string,
-    pass: string,
+    password: string,
   ): Promise<LocalAuthGuardUser | null> {
     const user = await this.usersService.findOneByEmail(email, {
       throwIfNotFound: false,
@@ -30,86 +37,71 @@ export class AuthService {
     if (!user) {
       return null;
     }
-    const match = await bcrypt.compare(pass, user.password);
+    const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return null;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...result } = user;
-    return result;
+    return this.usersService.purifyUser(user);
   }
 
   async login(user: LocalAuthGuardUser) {
     const payload: JwtPayload = {
-      email: user.email,
       sub: user.id,
+      email: user.email,
     };
-    const accessToken = this.jwtService.sign(payload);
-
-    const rawRefresh = generateRefreshToken();
-    const pepper = this.configService.get('REFRESH_TOKEN_PEPPER') as string;
-    const tokenHash = hashToken(rawRefresh, pepper);
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-    const rt = this.refreshTokenRepository.create({
-      tokenHash,
-      user: { id: user.id },
-      expiresAt,
-    });
-    await this.refreshTokenRepository.save(rt);
+    const refreshToken = generateRefreshToken();
+    await this.saveRefreshTokenToDb(refreshToken, user.id);
 
     return {
-      access_token: accessToken,
-      refresh_token: rawRefresh,
+      access_token: this.jwtService.sign(payload),
+      refresh_token: refreshToken,
     };
   }
 
-  async refresh(rawRefreshToken: string) {
-    const pepper = this.configService.get('REFRESH_TOKEN_PEPPER') as string;
-    const tokenHash = hashToken(rawRefreshToken, pepper);
-    const found = await this.refreshTokenRepository.findOne({
-      where: { tokenHash },
-      relations: ['user'],
+  async refresh(refreshToken: string) {
+    // Validation
+    const hash = hashRefreshToken(refreshToken, this.refreshPepper);
+    const entity = await this.refreshTokenRepository.findOne({
+      where: { tokenHash: hash },
+      relations: { user: true },
     });
-    if (!found) {
+    if (!entity) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    if (found.expiresAt.getTime() < Date.now()) {
-      await this.refreshTokenRepository.delete({ id: found.id });
+    const { user, expiresAt } = entity;
+    await this.refreshTokenRepository.delete({ id: entity.id });
+
+    if (expiresAt.getTime() < Date.now()) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-
-    // rotate: remove old token and create a new one
-    await this.refreshTokenRepository.delete({ id: found.id });
-
-    const newRaw = generateRefreshToken();
-    const newHash = hashToken(newRaw, pepper);
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    const newRt = this.refreshTokenRepository.create({
-      tokenHash: newHash,
-      user: found.user,
-      expiresAt,
-    });
-    await this.refreshTokenRepository.save(newRt);
+    // Rotation
+    const newRefreshToken = generateRefreshToken();
+    await this.saveRefreshTokenToDb(newRefreshToken, user!.id);
 
     const payload: JwtPayload = {
-      email: found.user.email,
-      sub: found.user.id,
+      sub: user!.id,
+      email: user!.email,
     };
-    const accessToken = this.jwtService.sign(payload);
     return {
-      access_token: accessToken,
-      refresh_token: newRaw,
+      access_token: this.jwtService.sign(payload),
+      refresh_token: newRefreshToken,
     };
   }
 
-  async logout(rawRefreshToken: string) {
-    const pepper = this.configService.get('REFRESH_TOKEN_PEPPER') as string;
-    const tokenHash = hashToken(rawRefreshToken, pepper);
-    await this.refreshTokenRepository.delete({ tokenHash });
+  async logout(refreshToken: string) {
+    const hash = hashRefreshToken(refreshToken, this.refreshPepper);
+    await this.refreshTokenRepository.delete({ tokenHash: hash });
   }
 
   async logoutAll(userId: number) {
     await this.refreshTokenRepository.delete({ user: { id: userId } });
+  }
+
+  private async saveRefreshTokenToDb(token: string, userId: number) {
+    await this.refreshTokenRepository.save({
+      tokenHash: hashRefreshToken(token, this.refreshPepper),
+      user: { id: userId },
+      expiresAt: new Date(Date.now() + this.refreshExpiresInMs),
+    });
   }
 }

@@ -53,7 +53,7 @@ export class UsersService {
     return `This action removes a #${id} user`;
   }
 
-  private purifyUser(user: User | null) {
+  purifyUser(user: User | null) {
     if (!user) return user;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...restUser } = user;
