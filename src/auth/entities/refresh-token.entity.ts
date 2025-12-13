@@ -31,4 +31,10 @@ export class RefreshToken {
 
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
+
+  @Column({ name: 'ip_address', type: 'varchar', length: 45, nullable: true })
+  ipAddress?: string;
+
+  @Column({ name: 'user_agent', type: 'text', nullable: true })
+  userAgent?: string;
 }

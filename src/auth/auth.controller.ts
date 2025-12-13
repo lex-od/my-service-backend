@@ -6,10 +6,13 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  Headers,
 } from '@nestjs/common';
+import { type Request as ExpressRequest } from 'express';
 import { AuthService } from './auth.service';
 import { type LocalAuthGuardUser, LocalAuthGuard } from './local';
 import { JwtAuthGuard, JwtAuthGuardUser } from './jwt';
+import { getClientIp } from './auth.utils';
 
 @Controller('auth')
 export class AuthController {
@@ -17,13 +20,26 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@Request() req: Express.Request) {
-    return this.authService.login(req.user as LocalAuthGuardUser);
+  login(
+    @Request() req: ExpressRequest,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    const ipAddress = getClientIp(req);
+    return this.authService.login(
+      req.user as LocalAuthGuardUser,
+      ipAddress,
+      userAgent,
+    );
   }
 
   @Post('refresh')
-  async refresh(@Body('refresh_token') refreshToken: string) {
-    return this.authService.refresh(refreshToken);
+  async refresh(
+    @Body('refresh_token') refreshToken: string,
+    @Request() req: ExpressRequest,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    const ipAddress = getClientIp(req);
+    return this.authService.refresh(refreshToken, ipAddress, userAgent);
   }
 
   @Post('logout')
@@ -35,7 +51,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout-all')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logoutAll(@Request() req: Express.Request) {
+  async logoutAll(@Request() req: ExpressRequest) {
     const user = req.user as JwtAuthGuardUser;
     await this.authService.logoutAll(user.id);
   }

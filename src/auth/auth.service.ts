@@ -44,13 +44,17 @@ export class AuthService {
     return this.usersService.purifyUser(user);
   }
 
-  async login(user: LocalAuthGuardUser) {
+  async login(
+    user: LocalAuthGuardUser,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
     };
     const refreshToken = generateRefreshToken();
-    await this.saveRefreshTokenToDb(refreshToken, user.id);
+    await this.saveRefreshTokenToDb(refreshToken, user.id, ipAddress, userAgent);
 
     return {
       access_token: this.jwtService.sign(payload),
@@ -58,7 +62,11 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string) {
+  async refresh(
+    refreshToken: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     // Validation
     const hash = hashRefreshToken(refreshToken, this.refreshPepper);
     const entity = await this.refreshTokenRepository.findOne({
@@ -76,7 +84,12 @@ export class AuthService {
     }
     // Rotation
     const newRefreshToken = generateRefreshToken();
-    await this.saveRefreshTokenToDb(newRefreshToken, user!.id);
+    await this.saveRefreshTokenToDb(
+      newRefreshToken,
+      user!.id,
+      ipAddress,
+      userAgent,
+    );
 
     const payload: JwtPayload = {
       sub: user!.id,
@@ -97,11 +110,18 @@ export class AuthService {
     await this.refreshTokenRepository.delete({ user: { id: userId } });
   }
 
-  private async saveRefreshTokenToDb(token: string, userId: number) {
+  private async saveRefreshTokenToDb(
+    token: string,
+    userId: number,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     await this.refreshTokenRepository.save({
       tokenHash: hashRefreshToken(token, this.refreshPepper),
       user: { id: userId },
       expiresAt: new Date(Date.now() + this.refreshExpiresInMs),
+      ipAddress,
+      userAgent,
     });
   }
 }
