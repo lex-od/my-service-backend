@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
+import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 
 @Entity('users')
 export class User {
@@ -9,6 +10,12 @@ export class User {
   @Column()
   email: string;
 
+  @Column()
+  password: string;
+
   @OneToMany(() => Company, (company) => company.user)
-  companies: Company[];
+  companies?: Company[];
+
+  @OneToMany(() => RefreshToken, (rt) => rt.user)
+  refreshTokens?: RefreshToken[];
 }
