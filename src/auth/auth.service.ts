@@ -10,6 +10,23 @@ import { type JwtPayload } from './jwt';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { generateRefreshToken, hashRefreshToken } from './auth.utils';
 
+interface LoginParams {
+  user: LocalAuthGuardUser;
+  ipAddress?: string;
+  userAgent?: string;
+}
+interface RefreshParams {
+  refreshToken: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+interface SaveRefreshTokenParams {
+  token: string;
+  userId: number;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
 @Injectable()
 export class AuthService {
   private readonly refreshPepper: string;
@@ -44,29 +61,26 @@ export class AuthService {
     return this.usersService.purifyUser(user);
   }
 
-  async login(
-    user: LocalAuthGuardUser,
-    ipAddress?: string,
-    userAgent?: string,
-  ) {
+  async login({ user, ipAddress, userAgent }: LoginParams) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
     };
     const refreshToken = generateRefreshToken();
-    await this.saveRefreshTokenToDb(refreshToken, user.id, ipAddress, userAgent);
 
+    await this.saveRefreshTokenToDb({
+      token: refreshToken,
+      userId: user.id,
+      ipAddress,
+      userAgent,
+    });
     return {
       access_token: this.jwtService.sign(payload),
       refresh_token: refreshToken,
     };
   }
 
-  async refresh(
-    refreshToken: string,
-    ipAddress?: string,
-    userAgent?: string,
-  ) {
+  async refresh({ refreshToken, ipAddress, userAgent }: RefreshParams) {
     // Validation
     const hash = hashRefreshToken(refreshToken, this.refreshPepper);
     const entity = await this.refreshTokenRepository.findOne({
@@ -84,13 +98,12 @@ export class AuthService {
     }
     // Rotation
     const newRefreshToken = generateRefreshToken();
-    await this.saveRefreshTokenToDb(
-      newRefreshToken,
-      user!.id,
+    await this.saveRefreshTokenToDb({
+      token: newRefreshToken,
+      userId: user!.id,
       ipAddress,
       userAgent,
-    );
-
+    });
     const payload: JwtPayload = {
       sub: user!.id,
       email: user!.email,
@@ -110,12 +123,12 @@ export class AuthService {
     await this.refreshTokenRepository.delete({ user: { id: userId } });
   }
 
-  private async saveRefreshTokenToDb(
-    token: string,
-    userId: number,
-    ipAddress?: string,
-    userAgent?: string,
-  ) {
+  private async saveRefreshTokenToDb({
+    token,
+    userId,
+    ipAddress,
+    userAgent,
+  }: SaveRefreshTokenParams) {
     await this.refreshTokenRepository.save({
       tokenHash: hashRefreshToken(token, this.refreshPepper),
       user: { id: userId },

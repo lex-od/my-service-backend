@@ -24,12 +24,11 @@ export class AuthController {
     @Request() req: ExpressRequest,
     @Headers('user-agent') userAgent?: string,
   ) {
-    const ipAddress = getClientIp(req);
-    return this.authService.login(
-      req.user as LocalAuthGuardUser,
-      ipAddress,
+    return this.authService.login({
+      user: req.user as LocalAuthGuardUser,
+      ipAddress: getClientIp(req),
       userAgent,
-    );
+    });
   }
 
   @Post('refresh')
@@ -38,19 +37,22 @@ export class AuthController {
     @Request() req: ExpressRequest,
     @Headers('user-agent') userAgent?: string,
   ) {
-    const ipAddress = getClientIp(req);
-    return this.authService.refresh(refreshToken, ipAddress, userAgent);
+    return this.authService.refresh({
+      refreshToken,
+      ipAddress: getClientIp(req),
+      userAgent,
+    });
   }
 
-  @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('logout')
   async logout(@Body('refresh_token') refreshToken: string) {
     await this.authService.logout(refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('logout-all')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('logout-all')
   async logoutAll(@Request() req: ExpressRequest) {
     const user = req.user as JwtAuthGuardUser;
     await this.authService.logoutAll(user.id);
