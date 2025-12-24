@@ -18,9 +18,6 @@ export class Service {
   @Column('decimal')
   price: number;
 
-  @Column({ name: 'company_id' })
-  companyId: number;
-
   @ManyToOne(() => Company, (company) => company.services)
   @JoinColumn({ name: 'company_id' })
   company: Company;

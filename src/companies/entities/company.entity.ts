@@ -17,9 +17,6 @@ export class Company {
   @Column()
   name: string;
 
-  @Column({ name: 'user_id' })
-  userId: number;
-
   @ManyToOne(() => User, (user) => user.companies)
   @JoinColumn({ name: 'user_id' })
   user: User;
