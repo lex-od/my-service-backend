@@ -22,7 +22,8 @@ export class RefreshToken {
   @ManyToOne(() => User, (user) => user.refreshTokens, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   @Index()
-  user?: User;
+  user: User;
+
   @RelationId((rt: RefreshToken) => rt.user)
   userId: number;
 

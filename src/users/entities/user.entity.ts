@@ -7,11 +7,14 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ unique: true })
   email: string;
 
   @Column()
   password: string;
+
+  @Column({ name: 'is_verified', default: false })
+  isVerified: boolean;
 
   @OneToMany(() => Company, (company) => company.user)
   companies?: Company[];

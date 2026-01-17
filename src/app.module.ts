@@ -9,6 +9,8 @@ import { Company } from './companies/entities/company.entity';
 import { Service } from './services/entities/service.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { AuthModule } from './auth/auth.module';
+import { VerificationCode } from './auth/entities/verification-code.entity';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -24,7 +26,7 @@ import { AuthModule } from './auth/auth.module';
         username: configService.get('DB_USERNAME'),
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_DATABASE'),
-        entities: [User, Company, Service, RefreshToken],
+        entities: [User, Company, Service, RefreshToken, VerificationCode],
         synchronize: false,
       }),
       inject: [ConfigService],
@@ -33,6 +35,7 @@ import { AuthModule } from './auth/auth.module';
     CompaniesModule,
     ServicesModule,
     AuthModule,
+    MailModule,
   ],
 })
 export class AppModule {}
