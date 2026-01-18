@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  RelationId,
 } from 'typeorm';
 import { Service } from 'src/services/entities/service.entity';
 import { User } from 'src/users/entities/user.entity';
@@ -19,7 +20,10 @@ export class Company {
 
   @ManyToOne(() => User, (user) => user.companies)
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user?: User;
+
+  @RelationId((company: Company) => company.user)
+  userId: number;
 
   @OneToMany(() => Service, (service) => service.company)
   services?: Service[];

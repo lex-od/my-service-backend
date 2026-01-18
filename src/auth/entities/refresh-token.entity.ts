@@ -15,14 +15,14 @@ export class RefreshToken {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'token_hash', length: 255 })
+  @Column({ name: 'token_hash' })
   @Index()
   tokenHash: string;
 
   @ManyToOne(() => User, (user) => user.refreshTokens, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   @Index()
-  user: User;
+  user?: User;
 
   @RelationId((rt: RefreshToken) => rt.user)
   userId: number;

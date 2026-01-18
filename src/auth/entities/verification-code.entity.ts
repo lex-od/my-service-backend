@@ -18,14 +18,6 @@ export class VerificationCode {
   @Column()
   code: string;
 
-  @OneToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
-  @Index()
-  user: User;
-
-  @RelationId((vc: VerificationCode) => vc.user)
-  userId: number;
-
   @Column({ default: 0 })
   attempts: number;
 
@@ -34,4 +26,12 @@ export class VerificationCode {
 
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
+
+  @OneToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  @Index()
+  user?: User;
+
+  @RelationId((vc: VerificationCode) => vc.user)
+  userId: number;
 }
