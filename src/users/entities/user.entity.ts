@@ -4,17 +4,19 @@ import {
   Column,
   OneToMany,
   OneToOne,
+  Unique,
 } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
 import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 import { VerificationCode } from 'src/auth/entities/verification-code.entity';
 
 @Entity('users')
+@Unique('users_email_key', ['email'])
 export class User {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'users_pkey' })
   id: number;
 
-  @Column({ unique: true })
+  @Column()
   email: string;
 
   @Column()

@@ -10,7 +10,7 @@ import { Company } from 'src/companies/entities/company.entity';
 
 @Entity('services')
 export class Service {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'services_pkey' })
   id: number;
 
   @Column()
@@ -20,7 +20,10 @@ export class Service {
   price: number;
 
   @ManyToOne(() => Company, (company) => company.services)
-  @JoinColumn({ name: 'company_id' })
+  @JoinColumn({
+    name: 'company_id',
+    foreignKeyConstraintName: 'services_company_id_fkey',
+  })
   company?: Company;
 
   @RelationId((service: Service) => service.company)

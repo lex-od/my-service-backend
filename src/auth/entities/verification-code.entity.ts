@@ -12,7 +12,9 @@ import { User } from 'src/users/entities/user.entity';
 
 @Entity('verification_codes')
 export class VerificationCode {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({
+    primaryKeyConstraintName: 'verification_codes_pkey',
+  })
   id: number;
 
   @Column()
@@ -28,8 +30,11 @@ export class VerificationCode {
   expiresAt: Date;
 
   @OneToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
-  @Index()
+  @JoinColumn({
+    name: 'user_id',
+    foreignKeyConstraintName: 'verification_codes_user_id_fkey',
+  })
+  @Index('verification_codes_user_id_idx')
   user?: User;
 
   @RelationId((vc: VerificationCode) => vc.user)
