@@ -30,8 +30,7 @@ import { MailModule } from './mail/mail.module';
           password: configService.get('DB_PASSWORD'),
           database: configService.get('DB_DATABASE'),
           entities: [User, Company, Service, RefreshToken, VerificationCode],
-          synchronize: false,
-          // synchronize: nodeEnv === 'local',
+          synchronize: nodeEnv === 'local',
         };
       },
       inject: [ConfigService],
