@@ -17,7 +17,12 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/data-source.ts",
+    "migration:create": "typeorm-ts-node-commonjs migration:create"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -51,6 +56,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/supertest": "^6.0.2",
+    "dotenv": "^17.2.3",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
