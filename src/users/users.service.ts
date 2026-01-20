@@ -12,7 +12,7 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto) {
     return 'This action adds a new user';
   }
 
@@ -45,7 +45,7 @@ export class UsersService {
     return this.purifyUser(user);
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
+  async update(id: number, updateUserDto: UpdateUserDto) {
     return `This action updates a #${id} user`;
   }
 
@@ -53,8 +53,7 @@ export class UsersService {
     return `This action removes a #${id} user`;
   }
 
-  purifyUser(user: User | null) {
-    if (!user) return user;
+  purifyUser(user: User) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...restUser } = user;
     return restUser;
