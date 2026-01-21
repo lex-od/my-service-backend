@@ -6,7 +6,6 @@ import {
   Body,
   HttpCode,
   HttpStatus,
-  Headers,
 } from '@nestjs/common';
 import { type Request as ExpressRequest } from 'express';
 import { LocalAuthGuard, type LocalAuthGuardUser } from './local';
@@ -17,6 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ResendVerificationCodeDto } from './dto/resend-verification-code.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -30,6 +30,17 @@ export class AuthController {
   @Post('resend-verification-code')
   async resendVerificationCode(@Body() dto: ResendVerificationCodeDto) {
     return this.authService.resendVerificationCode(dto.email);
+  }
+
+  @Post('verify-email')
+  async verifyEmail(
+    @Body() dto: VerifyEmailDto,
+    @Request() req: ExpressRequest,
+  ) {
+    return this.authService.verifyEmail(dto, {
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   @UseGuards(LocalAuthGuard)

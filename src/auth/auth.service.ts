@@ -74,7 +74,9 @@ export class AuthService {
   }
 
   async resendVerificationCode(email: string) {
-    const user = await this.usersService.findOneByEmail(email);
+    const user = await this.usersService.findOneByEmail(email, {
+      throwIfNotFound: false,
+    });
     if (!user || user.isVerified) {
       throw new BadRequestException('User not found or already verified');
     }
