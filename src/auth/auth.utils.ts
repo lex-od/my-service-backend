@@ -1,20 +1,24 @@
 import crypto from 'crypto';
 import { Request as ExpressRequest } from 'express';
 
-export function generateRefreshToken(): string {
+// 6-digits verification code
+export function generateVerificationCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+export function generateRefreshToken() {
   return crypto.randomBytes(48).toString('hex');
 }
 
-export function hashRefreshToken(raw: string, pepper: string): string {
+export function hashRefreshToken(raw: string, pepper: string) {
   return crypto
     .createHash('sha256')
     .update(raw + pepper)
     .digest('hex');
 }
 
-/**
- * Extracts the client IP address from the request, taking into account the proxy/load balancer
- */
+// Extracts the client IP address from the request,
+// taking into account the proxy/load balancer
 export function getClientIp(req: ExpressRequest) {
   const forwardedFor = req.headers['x-forwarded-for'];
   if (forwardedFor) {

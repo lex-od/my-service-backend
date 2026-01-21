@@ -13,7 +13,11 @@ import { UsersService } from 'src/users/users.service';
 import { MailService } from 'src/mail/mail.service';
 import { User } from 'src/users/entities/user.entity';
 import { type JwtPayload } from './jwt';
-import { generateRefreshToken, hashRefreshToken } from './auth.utils';
+import {
+  generateRefreshToken,
+  generateVerificationCode,
+  hashRefreshToken,
+} from './auth.utils';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { VerificationCode } from './entities/verification-code.entity';
 import { RegisterDto } from './dto/register.dto';
@@ -32,6 +36,8 @@ type SaveRefreshTokenParams = {
 export class AuthService {
   private readonly refreshPepper: string;
   private readonly refreshExpiresInMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+  private readonly verificationCodeExpiresInMs = 30 * 60 * 1000; // 30 minutes
+  private readonly verificationMaxAttempts = 5;
 
   constructor(
     private jwtService: JwtService,
@@ -48,23 +54,6 @@ export class AuthService {
     ) as string;
   }
 
-  async validateCredentials(email: string, password: string) {
-    const user = await this.usersService.findOneByEmail(email, {
-      throwIfNotFound: false,
-    });
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      throw new UnauthorizedException();
-    }
-    if (!user.isVerified) {
-      throw new UnauthorizedException('Please verify your email');
-    }
-    return user;
-  }
-
   async register(dto: RegisterDto) {
     const existingUser = await this.usersService.findOneByEmail(dto.email, {
       throwIfNotFound: false,
@@ -78,10 +67,23 @@ export class AuthService {
       email: dto.email,
       password: hashedPassword,
     });
-    await this.generateAndSendCode(newUser);
-
+    await this.generateAndSendVerificationCode(newUser);
     return {
       message: 'Success. Please check your email for verification code.',
+    };
+  }
+
+  async resendVerificationCode(email: string) {
+    const user = await this.usersService.findOneByEmail(email);
+    if (!user || user.isVerified) {
+      throw new BadRequestException('User not found or already verified');
+    }
+    await this.verificationCodeRepository.delete({
+      user: { id: user.id },
+    });
+    await this.generateAndSendVerificationCode(user);
+    return {
+      message: 'Code sent. Please check your email.',
     };
   }
 
@@ -114,7 +116,7 @@ export class AuthService {
     // Checking code expiration or too many attempts
     if (
       new Date() > verificationCode.expiresAt ||
-      verificationCode.attempts >= 5
+      verificationCode.attempts >= this.verificationMaxAttempts
     ) {
       await incrementAttempts(verificationCode.id);
       throw new BadRequestException(
@@ -190,6 +192,34 @@ export class AuthService {
 
   async logoutAll(userId: number) {
     await this.refreshTokenRepository.delete({ user: { id: userId } });
+  }
+
+  async validateCredentials(email: string, password: string) {
+    const user = await this.usersService.findOneByEmail(email, {
+      throwIfNotFound: false,
+    });
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      throw new UnauthorizedException();
+    }
+    if (!user.isVerified) {
+      throw new UnauthorizedException('Please verify your email');
+    }
+    return user;
+  }
+
+  private async generateAndSendVerificationCode(user: User) {
+    const code = generateVerificationCode();
+
+    await this.verificationCodeRepository.save({
+      user: { id: user.id },
+      code,
+      expiresAt: new Date(Date.now() + this.verificationCodeExpiresInMs),
+    });
+    await this.mailService.sendVerificationCode(user.email, code);
   }
 
   private async saveRefreshTokenToDb({
