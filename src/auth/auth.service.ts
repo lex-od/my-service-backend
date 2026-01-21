@@ -19,21 +19,14 @@ import { VerificationCode } from './entities/verification-code.entity';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 
-interface LoginParams {
+interface SessionInfo {
   ipAddress?: string;
   userAgent?: string;
 }
-interface RefreshParams {
-  refreshToken: string;
-  ipAddress?: string;
-  userAgent?: string;
-}
-interface SaveRefreshTokenParams {
+type SaveRefreshTokenParams = {
   token: string;
   userId: number;
-  ipAddress?: string;
-  userAgent?: string;
-}
+} & SessionInfo;
 
 @Injectable()
 export class AuthService {
@@ -92,7 +85,7 @@ export class AuthService {
     };
   }
 
-  async verifyEmail(dto: VerifyEmailDto) {
+  async verifyEmail(dto: VerifyEmailDto, sessionInfo: SessionInfo) {
     const incrementAttempts = (verificationCodeId: number) => {
       return this.verificationCodeRepository.increment(
         { id: verificationCodeId },
@@ -136,10 +129,10 @@ export class AuthService {
     // Success
     await this.usersService.update(user.id, { isVerified: true });
     await this.verificationCodeRepository.remove(verificationCode);
-    return this.login(user);
+    return this.login(user, sessionInfo);
   }
 
-  async login(user: User, { ipAddress, userAgent }: LoginParams) {
+  async login(user: User, sessionInfo: SessionInfo) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -149,8 +142,7 @@ export class AuthService {
     await this.saveRefreshTokenToDb({
       token: refreshToken,
       userId: user.id,
-      ipAddress,
-      userAgent,
+      ...sessionInfo,
     });
     return {
       access_token: this.jwtService.sign(payload),
@@ -158,7 +150,7 @@ export class AuthService {
     };
   }
 
-  async refresh({ refreshToken, ipAddress, userAgent }: RefreshParams) {
+  async refresh(refreshToken: string, sessionInfo: SessionInfo) {
     // Validation
     const hash = hashRefreshToken(refreshToken, this.refreshPepper);
     const entity = await this.refreshTokenRepository.findOne({
@@ -179,8 +171,7 @@ export class AuthService {
     await this.saveRefreshTokenToDb({
       token: newRefreshToken,
       userId: user!.id,
-      ipAddress,
-      userAgent,
+      ...sessionInfo,
     });
     const payload: JwtPayload = {
       sub: user!.id,

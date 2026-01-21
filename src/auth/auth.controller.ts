@@ -24,8 +24,7 @@ export class AuthController {
     @Request() req: ExpressRequest,
     @Headers('user-agent') userAgent?: string,
   ) {
-    return this.authService.login({
-      user: req.user as LocalAuthGuardUser,
+    return this.authService.login(req.user as LocalAuthGuardUser, {
       ipAddress: getClientIp(req),
       userAgent,
     });
@@ -37,8 +36,7 @@ export class AuthController {
     @Request() req: ExpressRequest,
     @Headers('user-agent') userAgent?: string,
   ) {
-    return this.authService.refresh({
-      refreshToken,
+    return this.authService.refresh(refreshToken, {
       ipAddress: getClientIp(req),
       userAgent,
     });
