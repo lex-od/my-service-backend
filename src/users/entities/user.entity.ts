@@ -19,7 +19,7 @@ export class User {
   @Column()
   email: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   password: string | null;
 
   @Column({ name: 'is_verified', default: false })
