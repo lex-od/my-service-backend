@@ -56,17 +56,12 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const existingUser = await this.usersService.findOneByEmail(dto.email, {
-      throwIfNotFound: false,
+      silent: true,
     });
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    const newUser = await this.usersService.create({
-      email: dto.email,
-      password: hashedPassword,
-    });
+    const newUser = await this.usersService.create(dto);
     await this.generateAndSendVerificationCode(newUser);
     return {
       message: 'Success. Please check your email for verification code.',
@@ -75,7 +70,7 @@ export class AuthService {
 
   async resendVerificationCode(email: string) {
     const user = await this.usersService.findOneByEmail(email, {
-      throwIfNotFound: false,
+      silent: true,
     });
     if (!user || user.isVerified) {
       throw new BadRequestException('User not found or already verified');
@@ -99,13 +94,14 @@ export class AuthService {
     };
     const invalidVerificationDataMsg = 'Please check your verification data';
 
-    // Checking user, verification status, code existence
+    // Checking user existence, verification status
     const user = await this.usersService.findOneByEmail(dto.email, {
-      throwIfNotFound: false,
+      silent: true,
     });
     if (!user || user.isVerified) {
       throw new BadRequestException(invalidVerificationDataMsg);
     }
+    // Checking code existence
     const verificationCode = await this.verificationCodeRepository.findOne({
       where: {
         user: { id: user.id },
@@ -115,7 +111,7 @@ export class AuthService {
     if (!verificationCode) {
       throw new BadRequestException(invalidVerificationDataMsg);
     }
-    // Checking code expiration or too many attempts
+    // Checking code expiration and max attempts
     if (
       new Date() > verificationCode.expiresAt ||
       verificationCode.attempts >= this.verificationMaxAttempts
@@ -130,7 +126,7 @@ export class AuthService {
       await incrementAttempts(verificationCode.id);
       throw new BadRequestException(invalidVerificationDataMsg);
     }
-    // Success
+    // All checks passed
     await this.usersService.update(user.id, { isVerified: true });
     await this.verificationCodeRepository.remove(verificationCode);
     return this.login(user, sessionInfo);
@@ -198,9 +194,9 @@ export class AuthService {
 
   async validateCredentials(email: string, password: string) {
     const user = await this.usersService.findOneByEmail(email, {
-      throwIfNotFound: false,
+      silent: true,
     });
-    if (!user) {
+    if (!user?.password) {
       throw new UnauthorizedException();
     }
     const match = await bcrypt.compare(password, user.password);
