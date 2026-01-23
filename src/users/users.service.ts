@@ -20,28 +20,32 @@ export class UsersService {
   ) {}
 
   async create(dto: CreateUserDto) {
-    let passwordHash: string | null = null;
+    const dtoCopy = { ...dto };
 
     if (dto.password) {
-      passwordHash = await bcrypt.hash(dto.password, this.passwordSaltRounds);
+      dtoCopy.password = await bcrypt.hash(
+        dto.password,
+        this.passwordSaltRounds,
+      );
     }
-    return this.usersRepository.save({
-      ...dto,
-      password: passwordHash,
-    });
+    return this.usersRepository.save(dtoCopy);
   }
 
-  findAll() {
-    return this.usersRepository.find();
-  }
+  async update(id: number, dto: UpdateUserDto, { silent }: BaseOptions = {}) {
+    const dtoCopy = { ...dto };
 
-  async findOneByEmail(email: string, { silent }: BaseOptions = {}) {
-    const user = await this.usersRepository.findOneBy({ email });
-
-    if (!user && !silent) {
-      throw new NotFoundException(`User with email ${email} not found`);
+    if (dto.password) {
+      dtoCopy.password = await bcrypt.hash(
+        dto.password,
+        this.passwordSaltRounds,
+      );
     }
-    return user;
+    const { affected } = await this.usersRepository.update(id, dtoCopy);
+
+    if (!affected && !silent) {
+      throw new NotFoundException(`User #${id} not found`);
+    }
+    return !!affected;
   }
 
   async findOneByIdWithCompanies(id: number) {
@@ -55,25 +59,13 @@ export class UsersService {
     return this.purifyUser(user);
   }
 
-  async update(id: number, dto: UpdateUserDto, { silent }: BaseOptions = {}) {
-    const entity = { ...dto };
+  async findOneByEmail(email: string, { silent }: BaseOptions = {}) {
+    const user = await this.usersRepository.findOneBy({ email });
 
-    if (entity.password) {
-      entity.password = await bcrypt.hash(
-        entity.password,
-        this.passwordSaltRounds,
-      );
+    if (!user && !silent) {
+      throw new NotFoundException(`User with email ${email} not found`);
     }
-    const { affected } = await this.usersRepository.update(id, entity);
-
-    if (!affected && !silent) {
-      throw new NotFoundException(`User #${id} not found`);
-    }
-    return !!affected;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+    return user;
   }
 
   purifyUser(user: User) {

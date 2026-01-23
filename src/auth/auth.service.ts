@@ -92,14 +92,14 @@ export class AuthService {
         1,
       );
     };
-    const invalidVerificationDataMsg = 'Please check your verification data';
+    const invalidDataMsg = 'Please check your verification data';
 
     // Checking user existence, verification status
     const user = await this.usersService.findOneByEmail(dto.email, {
       silent: true,
     });
     if (!user || user.isVerified) {
-      throw new BadRequestException(invalidVerificationDataMsg);
+      throw new BadRequestException(invalidDataMsg);
     }
     // Checking code existence
     const verificationCode = await this.verificationCodeRepository.findOne({
@@ -109,7 +109,7 @@ export class AuthService {
       // relations: { user: true },
     });
     if (!verificationCode) {
-      throw new BadRequestException(invalidVerificationDataMsg);
+      throw new BadRequestException(invalidDataMsg);
     }
     // Checking code expiration and max attempts
     if (
@@ -124,7 +124,7 @@ export class AuthService {
     // Checking code compliance
     if (dto.code !== verificationCode.code) {
       await incrementAttempts(verificationCode.id);
-      throw new BadRequestException(invalidVerificationDataMsg);
+      throw new BadRequestException(invalidDataMsg);
     }
     // All checks passed
     await this.usersService.update(user.id, { isVerified: true });
@@ -133,19 +133,18 @@ export class AuthService {
   }
 
   async login(user: User, sessionInfo: SessionInfo) {
-    const payload: JwtPayload = {
-      sub: user.id,
+    const accessToken = this.jwtService.sign<JwtPayload>({
+      id: user.id,
       email: user.email,
-    };
+    });
     const refreshToken = generateRefreshToken();
-
     await this.saveRefreshTokenToDb({
       token: refreshToken,
       userId: user.id,
       ...sessionInfo,
     });
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: accessToken,
       refresh_token: refreshToken,
     };
   }
@@ -167,18 +166,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
     // Rotation
+    const newAccessToken = this.jwtService.sign<JwtPayload>({
+      id: user!.id,
+      email: user!.email,
+    });
     const newRefreshToken = generateRefreshToken();
     await this.saveRefreshTokenToDb({
       token: newRefreshToken,
       userId: user!.id,
       ...sessionInfo,
     });
-    const payload: JwtPayload = {
-      sub: user!.id,
-      email: user!.email,
-    };
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: newAccessToken,
       refresh_token: newRefreshToken,
     };
   }

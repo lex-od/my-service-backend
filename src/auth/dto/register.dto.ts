@@ -15,7 +15,7 @@ export class RegisterDto {
     },
     {
       message:
-        'Minimum: 8 characters, 1 uppercase letter, 1 lowercase letter, 1 number',
+        'password requirements: 8 characters, 1 uppercase letter, 1 lowercase letter, 1 number',
     },
   )
   password: string;

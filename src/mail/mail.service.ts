@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
-import { emailVerificationTpl } from './templates/email-verification.template';
+import { emailVerificationTemplate } from './templates/email-verification.template';
 
 @Injectable()
 export class MailService {
@@ -14,7 +14,7 @@ export class MailService {
   async sendVerificationCode(email: string, code: string) {
     const frontendUrl = this.configService.get('FRONTEND_URL') as string;
 
-    const html = emailVerificationTpl({
+    const html = emailVerificationTemplate({
       code,
       frontendUrl,
       email: encodeURIComponent(email),

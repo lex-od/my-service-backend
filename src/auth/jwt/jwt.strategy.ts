@@ -4,13 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { Injectable } from '@nestjs/common';
 
 export interface JwtPayload {
-  sub: number;
-  email: string;
-}
-export interface JwtAuthGuardUser {
   id: number;
   email: string;
 }
+export type JwtAuthGuardUser = JwtPayload;
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -22,9 +19,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: JwtPayload): JwtAuthGuardUser {
-    return {
-      id: payload.sub,
-      email: payload.email,
-    };
+    return payload;
   }
 }

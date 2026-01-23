@@ -1,7 +1,6 @@
 import {
   IsBoolean,
   IsEmail,
-  IsOptional,
   IsString,
   IsStrongPassword,
   ValidateIf,
@@ -11,7 +10,7 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
   @IsString()
   @IsStrongPassword(
     {
@@ -23,12 +22,12 @@ export class CreateUserDto {
     },
     {
       message:
-        'Minimum: 8 characters, 1 uppercase letter, 1 lowercase letter, 1 number',
+        'password requirements: 8 characters, 1 uppercase letter, 1 lowercase letter, 1 number',
     },
   )
-  password?: string | null;
+  password: string | null;
 
-  @ValidateIf((object, value) => value !== undefined)
+  @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
   isVerified?: boolean;
 }

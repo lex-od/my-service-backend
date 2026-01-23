@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
@@ -24,7 +24,7 @@ import { JwtStrategy } from './jwt';
       }),
       inject: [ConfigService],
     }),
-    forwardRef(() => UsersModule),
+    UsersModule,
     MailModule,
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy],
