@@ -1,86 +1,155 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsersService } from 'src/users/users.service';
-import { type LocalAuthGuardUser } from './local';
+import { MailService } from 'src/mail/mail.service';
+import { User } from 'src/users/entities/user.entity';
 import { type JwtPayload } from './jwt';
+import {
+  generateRefreshToken,
+  generateVerificationCode,
+  hashRefreshToken,
+} from './auth.utils';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { generateRefreshToken, hashRefreshToken } from './auth.utils';
+import { VerificationCode } from './entities/verification-code.entity';
+import { RegisterDto } from './dto/register.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
-interface LoginParams {
-  user: LocalAuthGuardUser;
+interface SessionInfo {
   ipAddress?: string;
   userAgent?: string;
 }
-interface RefreshParams {
-  refreshToken: string;
-  ipAddress?: string;
-  userAgent?: string;
-}
-interface SaveRefreshTokenParams {
+type SaveRefreshTokenParams = {
   token: string;
   userId: number;
-  ipAddress?: string;
-  userAgent?: string;
-}
+} & SessionInfo;
 
 @Injectable()
 export class AuthService {
   private readonly refreshPepper: string;
   private readonly refreshExpiresInMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+  private readonly verificationCodeExpiresInMs = 30 * 60 * 1000; // 30 minutes
+  private readonly verificationMaxAttempts = 5;
 
   constructor(
-    private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private usersService: UsersService,
+    private mailService: MailService,
     @InjectRepository(RefreshToken)
     private refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(VerificationCode)
+    private verificationCodeRepository: Repository<VerificationCode>,
   ) {
     this.refreshPepper = this.configService.get(
       'REFRESH_TOKEN_PEPPER',
     ) as string;
   }
 
-  async validateUserCredentials(
-    email: string,
-    password: string,
-  ): Promise<LocalAuthGuardUser | null> {
-    const user = await this.usersService.findOneByEmail(email, {
-      throwIfNotFound: false,
+  async register(dto: RegisterDto) {
+    const existingUser = await this.usersService.findOneByEmail(dto.email, {
+      silent: true,
     });
-    if (!user) {
-      return null;
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
     }
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return null;
-    }
-    return this.usersService.purifyUser(user);
+    const newUser = await this.usersService.create(dto);
+    await this.generateAndSendVerificationCode(newUser);
+    return {
+      message: 'Success. Please check your email for verification code.',
+    };
   }
 
-  async login({ user, ipAddress, userAgent }: LoginParams) {
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
+  async resendVerificationCode(email: string) {
+    const user = await this.usersService.findOneByEmail(email, {
+      silent: true,
+    });
+    if (!user || user.isVerified) {
+      throw new BadRequestException('User not found or already verified');
+    }
+    await this.verificationCodeRepository.delete({
+      user: { id: user.id },
+    });
+    await this.generateAndSendVerificationCode(user);
+    return {
+      message: 'Code sent. Please check your email.',
     };
-    const refreshToken = generateRefreshToken();
+  }
 
+  async verifyEmail(dto: VerifyEmailDto, sessionInfo: SessionInfo) {
+    const incrementAttempts = (verificationCodeId: number) => {
+      return this.verificationCodeRepository.increment(
+        { id: verificationCodeId },
+        'attempts',
+        1,
+      );
+    };
+    const invalidDataMsg = 'Please check your verification data';
+
+    // Checking user existence, verification status
+    const user = await this.usersService.findOneByEmail(dto.email, {
+      silent: true,
+    });
+    if (!user || user.isVerified) {
+      throw new BadRequestException(invalidDataMsg);
+    }
+    // Checking code existence
+    const verificationCode = await this.verificationCodeRepository.findOne({
+      where: {
+        user: { id: user.id },
+      },
+      // relations: { user: true },
+    });
+    if (!verificationCode) {
+      throw new BadRequestException(invalidDataMsg);
+    }
+    // Checking code expiration and max attempts
+    if (
+      new Date() > verificationCode.expiresAt ||
+      verificationCode.attempts >= this.verificationMaxAttempts
+    ) {
+      await incrementAttempts(verificationCode.id);
+      throw new BadRequestException(
+        'Code expired or too many attempts. Please request a new one.',
+      );
+    }
+    // Checking code compliance
+    if (dto.code !== verificationCode.code) {
+      await incrementAttempts(verificationCode.id);
+      throw new BadRequestException(invalidDataMsg);
+    }
+    // All checks passed
+    await this.usersService.update(user.id, { isVerified: true });
+    await this.verificationCodeRepository.remove(verificationCode);
+    return this.login(user, sessionInfo);
+  }
+
+  async login(user: User, sessionInfo: SessionInfo) {
+    const accessToken = this.jwtService.sign<JwtPayload>({
+      id: user.id,
+      email: user.email,
+    });
+    const refreshToken = generateRefreshToken();
     await this.saveRefreshTokenToDb({
       token: refreshToken,
       userId: user.id,
-      ipAddress,
-      userAgent,
+      ...sessionInfo,
     });
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: accessToken,
       refresh_token: refreshToken,
     };
   }
 
-  async refresh({ refreshToken, ipAddress, userAgent }: RefreshParams) {
+  async refresh(refreshToken: string, sessionInfo: SessionInfo) {
     // Validation
     const hash = hashRefreshToken(refreshToken, this.refreshPepper);
     const entity = await this.refreshTokenRepository.findOne({
@@ -97,19 +166,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
     // Rotation
+    const newAccessToken = this.jwtService.sign<JwtPayload>({
+      id: user!.id,
+      email: user!.email,
+    });
     const newRefreshToken = generateRefreshToken();
     await this.saveRefreshTokenToDb({
       token: newRefreshToken,
       userId: user!.id,
-      ipAddress,
-      userAgent,
+      ...sessionInfo,
     });
-    const payload: JwtPayload = {
-      sub: user!.id,
-      email: user!.email,
-    };
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: newAccessToken,
       refresh_token: newRefreshToken,
     };
   }
@@ -121,6 +189,34 @@ export class AuthService {
 
   async logoutAll(userId: number) {
     await this.refreshTokenRepository.delete({ user: { id: userId } });
+  }
+
+  async validateCredentials(email: string, password: string) {
+    const user = await this.usersService.findOneByEmail(email, {
+      silent: true,
+    });
+    if (!user?.password) {
+      throw new UnauthorizedException();
+    }
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      throw new UnauthorizedException();
+    }
+    if (!user.isVerified) {
+      throw new UnauthorizedException('Please verify your email');
+    }
+    return user;
+  }
+
+  private async generateAndSendVerificationCode(user: User) {
+    const code = generateVerificationCode();
+
+    await this.verificationCodeRepository.save({
+      user: { id: user.id },
+      code,
+      expiresAt: new Date(Date.now() + this.verificationCodeExpiresInMs),
+    });
+    await this.mailService.sendVerificationCode(user.email, code);
   }
 
   private async saveRefreshTokenToDb({

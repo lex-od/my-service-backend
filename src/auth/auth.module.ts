@@ -1,19 +1,20 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from 'src/users/users.module';
+import { MailModule } from 'src/mail/mail.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { VerificationCode } from './entities/verification-code.entity';
 import { LocalStrategy } from './local';
 import { JwtStrategy } from './jwt';
 
 @Module({
   imports: [
-    forwardRef(() => UsersModule),
-    TypeOrmModule.forFeature([RefreshToken]),
+    TypeOrmModule.forFeature([RefreshToken, VerificationCode]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -23,6 +24,8 @@ import { JwtStrategy } from './jwt';
       }),
       inject: [ConfigService],
     }),
+    UsersModule,
+    MailModule,
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy],
   controllers: [AuthController],

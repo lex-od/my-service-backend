@@ -9,6 +9,8 @@ import { Company } from './companies/entities/company.entity';
 import { Service } from './services/entities/service.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { AuthModule } from './auth/auth.module';
+import { VerificationCode } from './auth/entities/verification-code.entity';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -17,22 +19,27 @@ import { AuthModule } from './auth/auth.module';
       envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: configService.get('DB_PORT'),
-        username: configService.get('DB_USERNAME'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_DATABASE'),
-        entities: [User, Company, Service, RefreshToken],
-        synchronize: false,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const nodeEnv = configService.get('NODE_ENV') as string;
+
+        return {
+          type: 'postgres',
+          host: configService.get('DB_HOST'),
+          port: configService.get('DB_PORT'),
+          username: configService.get('DB_USERNAME'),
+          password: configService.get('DB_PASSWORD'),
+          database: configService.get('DB_DATABASE'),
+          entities: [User, Company, Service, RefreshToken, VerificationCode],
+          synchronize: nodeEnv === 'local',
+        };
+      },
       inject: [ConfigService],
     }),
     UsersModule,
     CompaniesModule,
     ServicesModule,
     AuthModule,
+    MailModule,
   ],
 })
 export class AppModule {}

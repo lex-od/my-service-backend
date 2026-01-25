@@ -1,43 +1,57 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 
+interface BaseOptions {
+  silent?: boolean;
+}
+
 @Injectable()
 export class UsersService {
+  private readonly passwordSaltRounds = 10;
+
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {}
 
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
-  }
+  async create(dto: CreateUserDto) {
+    const dtoCopy = { ...dto };
 
-  findAll() {
-    return this.usersRepository.find();
-  }
-
-  async findOneByEmail(
-    email: string,
-    { throwIfNotFound = true }: { throwIfNotFound?: boolean } = {},
-  ) {
-    const user = await this.usersRepository.findOneBy({ email });
-
-    if (!user && throwIfNotFound) {
-      throw new NotFoundException(`User with email ${email} not found`);
+    if (dto.password) {
+      dtoCopy.password = await bcrypt.hash(
+        dto.password,
+        this.passwordSaltRounds,
+      );
     }
-    return user;
+    return this.usersRepository.save(dtoCopy);
+  }
+
+  async update(id: number, dto: UpdateUserDto, { silent }: BaseOptions = {}) {
+    const dtoCopy = { ...dto };
+
+    if (dto.password) {
+      dtoCopy.password = await bcrypt.hash(
+        dto.password,
+        this.passwordSaltRounds,
+      );
+    }
+    const { affected } = await this.usersRepository.update(id, dtoCopy);
+
+    if (!affected && !silent) {
+      throw new NotFoundException(`User #${id} not found`);
+    }
+    return !!affected;
   }
 
   async findOneByIdWithCompanies(id: number) {
     const user = await this.usersRepository.findOne({
       where: { id },
-      relations: {
-        companies: true,
-      },
+      relations: { companies: true },
     });
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
@@ -45,16 +59,16 @@ export class UsersService {
     return this.purifyUser(user);
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async findOneByEmail(email: string, { silent }: BaseOptions = {}) {
+    const user = await this.usersRepository.findOneBy({ email });
+
+    if (!user && !silent) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+    return user;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
-  }
-
-  purifyUser(user: User | null) {
-    if (!user) return user;
+  purifyUser(user: User) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...restUser } = user;
     return restUser;

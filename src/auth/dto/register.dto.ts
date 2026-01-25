@@ -1,16 +1,9 @@
-import {
-  IsBoolean,
-  IsEmail,
-  IsString,
-  IsStrongPassword,
-  ValidateIf,
-} from 'class-validator';
+import { IsEmail, IsString, IsStrongPassword } from 'class-validator';
 
-export class CreateUserDto {
+export class RegisterDto {
   @IsEmail()
   email: string;
 
-  @ValidateIf((_, value) => value !== null)
   @IsString()
   @IsStrongPassword(
     {
@@ -25,9 +18,5 @@ export class CreateUserDto {
         'password requirements: 8 characters, 1 uppercase letter, 1 lowercase letter, 1 number',
     },
   )
-  password: string | null;
-
-  @ValidateIf((_, value) => value !== undefined)
-  @IsBoolean()
-  isVerified?: boolean;
+  password: string;
 }
