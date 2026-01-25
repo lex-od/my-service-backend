@@ -11,6 +11,7 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { AuthModule } from './auth/auth.module';
 import { VerificationCode } from './auth/entities/verification-code.entity';
 import { MailModule } from './mail/mail.module';
+import { PasswordResetCode } from './auth/entities/password-reset-code.entity';
 
 @Module({
   imports: [
@@ -29,7 +30,14 @@ import { MailModule } from './mail/mail.module';
           username: configService.get('DB_USERNAME'),
           password: configService.get('DB_PASSWORD'),
           database: configService.get('DB_DATABASE'),
-          entities: [User, Company, Service, RefreshToken, VerificationCode],
+          entities: [
+            User,
+            Company,
+            Service,
+            RefreshToken,
+            VerificationCode,
+            PasswordResetCode,
+          ],
           synchronize: nodeEnv === 'local',
         };
       },

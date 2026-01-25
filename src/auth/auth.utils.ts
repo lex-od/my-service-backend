@@ -1,8 +1,7 @@
 import crypto from 'crypto';
 import { Request as ExpressRequest } from 'express';
 
-// 6-digits verification code
-export function generateVerificationCode() {
+export function generateSixDigitsCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 

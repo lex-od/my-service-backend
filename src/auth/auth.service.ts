@@ -15,39 +15,41 @@ import { User } from 'src/users/entities/user.entity';
 import { type JwtPayload } from './jwt';
 import {
   generateRefreshToken,
-  generateVerificationCode,
+  generateSixDigitsCode,
   hashRefreshToken,
 } from './auth.utils';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { VerificationCode } from './entities/verification-code.entity';
+import { PasswordResetCode } from './entities/password-reset-code.entity';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
-interface SessionInfo {
+export interface SessionInfo {
   ipAddress?: string;
   userAgent?: string;
 }
-type SaveRefreshTokenParams = {
-  token: string;
-  userId: number;
-} & SessionInfo;
 
 @Injectable()
 export class AuthService {
-  private readonly refreshPepper: string;
-  private readonly refreshExpiresInMs = 30 * 24 * 60 * 60 * 1000; // 30 days
   private readonly verificationCodeExpiresInMs = 30 * 60 * 1000; // 30 minutes
   private readonly verificationMaxAttempts = 5;
+  private readonly refreshPepper: string;
+  private readonly refreshExpiresInMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+  private readonly passwordResetCodeExpiresInMs = 10 * 60 * 1000; // 10 minutes
 
   constructor(
+    @InjectRepository(VerificationCode)
+    private verificationCodeRepository: Repository<VerificationCode>,
+    @InjectRepository(RefreshToken)
+    private refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(PasswordResetCode)
+    private passwordResetCodeRepository: Repository<PasswordResetCode>,
     private jwtService: JwtService,
     private configService: ConfigService,
     private usersService: UsersService,
     private mailService: MailService,
-    @InjectRepository(RefreshToken)
-    private refreshTokenRepository: Repository<RefreshToken>,
-    @InjectRepository(VerificationCode)
-    private verificationCodeRepository: Repository<VerificationCode>,
   ) {
     this.refreshPepper = this.configService.get(
       'REFRESH_TOKEN_PEPPER',
@@ -106,7 +108,6 @@ export class AuthService {
       where: {
         user: { id: user.id },
       },
-      // relations: { user: true },
     });
     if (!verificationCode) {
       throw new BadRequestException(invalidDataMsg);
@@ -137,12 +138,10 @@ export class AuthService {
       id: user.id,
       email: user.email,
     });
-    const refreshToken = generateRefreshToken();
-    await this.saveRefreshTokenToDb({
-      token: refreshToken,
-      userId: user.id,
-      ...sessionInfo,
-    });
+    const refreshToken = await this.generateAndSaveRefreshToken(
+      user.id,
+      sessionInfo,
+    );
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -165,21 +164,8 @@ export class AuthService {
     if (expiresAt.getTime() < Date.now()) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    // Rotation
-    const newAccessToken = this.jwtService.sign<JwtPayload>({
-      id: user!.id,
-      email: user!.email,
-    });
-    const newRefreshToken = generateRefreshToken();
-    await this.saveRefreshTokenToDb({
-      token: newRefreshToken,
-      userId: user!.id,
-      ...sessionInfo,
-    });
-    return {
-      access_token: newAccessToken,
-      refresh_token: newRefreshToken,
-    };
+    // Refresh token is valid
+    return this.login(user!, sessionInfo);
   }
 
   async logout(refreshToken: string) {
@@ -189,6 +175,75 @@ export class AuthService {
 
   async logoutAll(userId: number) {
     await this.refreshTokenRepository.delete({ user: { id: userId } });
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const codeSentMsg = 'If the email exists, a code has been sent';
+
+    const user = await this.usersService.findOneByEmail(dto.email, {
+      silent: true,
+    });
+    if (!user) {
+      return { message: codeSentMsg };
+    }
+    await this.passwordResetCodeRepository.delete({
+      user: { id: user.id },
+    });
+    const code = generateSixDigitsCode();
+
+    await this.passwordResetCodeRepository.save({
+      user: { id: user.id },
+      code,
+      expiresAt: new Date(Date.now() + this.passwordResetCodeExpiresInMs),
+    });
+    await this.mailService.sendPasswordResetCode(user.email, code);
+
+    return { message: codeSentMsg };
+  }
+
+  async resetPassword(dto: ResetPasswordDto, sessionInfo: SessionInfo) {
+    const incrementAttempts = (id: number) => {
+      return this.passwordResetCodeRepository.increment({ id }, 'attempts', 1);
+    };
+    const invalidDataMsg = 'Invalid reset code or email';
+
+    // Checking user existence
+    const user = await this.usersService.findOneByEmail(dto.email, {
+      silent: true,
+    });
+    if (!user) {
+      throw new BadRequestException(invalidDataMsg);
+    }
+    // Checking code existence
+    const passwordResetCode = await this.passwordResetCodeRepository.findOne({
+      where: {
+        user: { id: user.id },
+      },
+    });
+    if (!passwordResetCode) {
+      throw new BadRequestException(invalidDataMsg);
+    }
+    // Checking code expiration and max attempts
+    if (
+      passwordResetCode.expiresAt < new Date() ||
+      passwordResetCode.attempts >= this.verificationMaxAttempts
+    ) {
+      await incrementAttempts(passwordResetCode.id);
+      throw new BadRequestException(
+        'Code expired or too many attempts. Please request a new one.',
+      );
+    }
+    // Checking code compliance
+    if (dto.code !== passwordResetCode.code) {
+      await incrementAttempts(passwordResetCode.id);
+      throw new BadRequestException(invalidDataMsg);
+    }
+    // All checks passed
+    await this.usersService.update(user.id, { password: dto.password });
+    await this.passwordResetCodeRepository.remove(passwordResetCode);
+    await this.logoutAll(user.id);
+
+    return this.login(user, sessionInfo);
   }
 
   async validateCredentials(email: string, password: string) {
@@ -209,7 +264,7 @@ export class AuthService {
   }
 
   private async generateAndSendVerificationCode(user: User) {
-    const code = generateVerificationCode();
+    const code = generateSixDigitsCode();
 
     await this.verificationCodeRepository.save({
       user: { id: user.id },
@@ -219,18 +274,18 @@ export class AuthService {
     await this.mailService.sendVerificationCode(user.email, code);
   }
 
-  private async saveRefreshTokenToDb({
-    token,
-    userId,
-    ipAddress,
-    userAgent,
-  }: SaveRefreshTokenParams) {
+  private async generateAndSaveRefreshToken(
+    userId: number,
+    sessionInfo: SessionInfo,
+  ) {
+    const refreshToken = generateRefreshToken();
+
     await this.refreshTokenRepository.save({
-      tokenHash: hashRefreshToken(token, this.refreshPepper),
+      tokenHash: hashRefreshToken(refreshToken, this.refreshPepper),
       user: { id: userId },
       expiresAt: new Date(Date.now() + this.refreshExpiresInMs),
-      ipAddress,
-      userAgent,
+      ...sessionInfo,
     });
+    return refreshToken;
   }
 }

@@ -1,14 +1,14 @@
-interface EmailVerificationParams {
+interface PasswordResetParams {
   email: string;
   code: string;
   frontendUrl: string;
 }
 
-export const emailVerificationTemplate = ({
+export const passwordResetTemplate = ({
   email,
   code,
   frontendUrl,
-}: EmailVerificationParams) => {
+}: PasswordResetParams) => {
   const encodedEmail = encodeURIComponent(email);
 
   return `
@@ -16,7 +16,7 @@ export const emailVerificationTemplate = ({
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Підтвердження Email</title>
+      <title>Скидання пароля</title>
     </head>
     <body style="font-family: sans-serif; background-color: #FCF9F9; padding: 20px; margin: 0;">
       <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -25,12 +25,13 @@ export const emailVerificationTemplate = ({
             <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #FFFFFF; border-radius: 20px; padding: 40px; box-shadow: 0 4px 24px -4px rgba(222, 44, 78, 0.12);">
               <tr>
                 <td align="center" style="padding-bottom: 20px;">
-                  <h1 style="color: #383232; margin: 0; font-size: 24px; font-weight: bold;">Підтвердження реєстрації</h1>
+                  <h1 style="color: #383232; margin: 0; font-size: 24px; font-weight: bold;">Скидання пароля</h1>
                 </td>
               </tr>
               <tr>
                 <td style="color: #797171; font-size: 16px; line-height: 24px; text-align: center; padding-bottom: 30px;">
-                  Ваш код підтвердження для завершення реєстрації:
+                  Ви запросили скидання пароля для акаунту <b>${email}</b>.<br>
+                  Ваш код підтвердження:
                 </td>
               </tr>
               <tr>
@@ -42,15 +43,15 @@ export const emailVerificationTemplate = ({
               </tr>
               <tr>
                  <td align="center" style="padding-bottom: 30px;">
-                    <a href="${frontendUrl}/email-verification?email=${encodedEmail}&code=${code}" target="_blank" style="background-color: #DE2C4E; color: #FFFFFF; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block; font-size: 16px;">
-                      Підтвердити пошту
+                    <a href="${frontendUrl}/reset-password?email=${encodedEmail}&code=${code}" target="_blank" style="background-color: #DE2C4E; color: #FFFFFF; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block; font-size: 16px;">
+                      Скинути пароль
                     </a>
                  </td>
               </tr>
               <tr>
                 <td style="color: #797171; font-size: 14px; text-align: center; opacity: 0.8;">
-                  Код дійсний протягом 30 хвилин.<br>
-                  Якщо ви не запитували цей код, просто проігноруйте лист.
+                  Код дійсний протягом 10 хвилин.<br>
+                  Якщо ви не робили цей запит, просто проігноруйте цей лист.
                 </td>
               </tr>
             </table>
