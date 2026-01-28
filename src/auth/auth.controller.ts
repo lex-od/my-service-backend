@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { type Request as ExpressRequest } from 'express';
 import { LocalAuthGuard, type LocalAuthGuardUser } from './local';
 import { JwtAuthGuard, type JwtAuthGuardUser } from './jwt';
@@ -20,6 +21,9 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
+const throttleOptions = {
+  medium: { limit: 10, ttl: 60000 }, // 1 minute
+};
 const getSessionInfo = (req: ExpressRequest): SessionInfo => ({
   ipAddress: getClientIp(req),
   userAgent: req.headers['user-agent'],
@@ -29,16 +33,19 @@ const getSessionInfo = (req: ExpressRequest): SessionInfo => ({
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Throttle(throttleOptions)
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
+  @Throttle(throttleOptions)
   @Post('resend-verification-code')
   async resendVerificationCode(@Body() dto: ResendVerificationCodeDto) {
     return this.authService.resendVerificationCode(dto.email);
   }
 
+  @Throttle(throttleOptions)
   @Post('verify-email')
   async verifyEmail(
     @Body() dto: VerifyEmailDto,
@@ -47,6 +54,7 @@ export class AuthController {
     return this.authService.verifyEmail(dto, getSessionInfo(req));
   }
 
+  @Throttle(throttleOptions)
   @UseGuards(LocalAuthGuard)
   @Post('login')
   login(@Request() req: ExpressRequest) {
@@ -75,11 +83,13 @@ export class AuthController {
     await this.authService.logoutAll(user.id);
   }
 
+  @Throttle(throttleOptions)
   @Post('forgot-password')
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
+  @Throttle(throttleOptions)
   @Post('reset-password')
   async resetPassword(
     @Body() dto: ResetPasswordDto,
