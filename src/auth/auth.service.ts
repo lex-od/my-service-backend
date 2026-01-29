@@ -34,7 +34,7 @@ export interface SessionInfo {
 @Injectable()
 export class AuthService {
   private readonly verificationCodeExpiresInMs = 30 * 60 * 1000; // 30 minutes
-  private readonly verificationMaxAttempts = 5;
+  private readonly inputCodeMaxAttempts = 5;
   private readonly refreshPepper: string;
   private readonly refreshExpiresInMs = 30 * 24 * 60 * 60 * 1000; // 30 days
   private readonly sendingCodeRetryAfterMs = 60 * 1000; // 1 minute
@@ -116,7 +116,7 @@ export class AuthService {
     // Checking code expiration and max attempts
     if (
       new Date() > verificationCode.expiresAt ||
-      verificationCode.attempts >= this.verificationMaxAttempts
+      verificationCode.attempts >= this.inputCodeMaxAttempts
     ) {
       await incrementAttempts(verificationCode.id);
       throw new BadRequestException(
@@ -215,48 +215,43 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto, sessionInfo: SessionInfo) {
-    const incrementAttempts = (id: number) => {
-      return this.passwordResetCodeRepository.increment({ id }, 'attempts', 1);
-    };
-    const invalidDataMsg = 'Invalid reset code or email';
+    const invalidDataMsg = 'Invalid email or reset code';
 
     // Checking user existence
-    const user = await this.usersService.findOneByEmail(dto.email, {
+    const userEntity = await this.usersService.findOneByEmail(dto.email, {
       silent: true,
     });
-    if (!user) {
+    if (!userEntity) {
       throw new BadRequestException(invalidDataMsg);
     }
     // Checking code existence
-    const passwordResetCode = await this.passwordResetCodeRepository.findOne({
-      where: {
-        user: { id: user.id },
-      },
+    const codeEntity = await this.passwordResetCodeRepository.findOneBy({
+      user: { id: userEntity.id },
     });
-    if (!passwordResetCode) {
+    if (!codeEntity) {
       throw new BadRequestException(invalidDataMsg);
     }
-    // Checking code expiration and max attempts
+    // Checking code expiration, max attempts => code compliance
     if (
-      passwordResetCode.expiresAt < new Date() ||
-      passwordResetCode.attempts >= this.verificationMaxAttempts
+      codeEntity.expiresAt.getTime() < Date.now() ||
+      codeEntity.attempts >= this.inputCodeMaxAttempts ||
+      dto.code !== codeEntity.code
     ) {
-      await incrementAttempts(passwordResetCode.id);
-      throw new BadRequestException(
-        'Code expired or too many attempts. Please request a new one.',
+      await this.passwordResetCodeRepository.increment(
+        { id: codeEntity.id },
+        'attempts',
+        1,
       );
-    }
-    // Checking code compliance
-    if (dto.code !== passwordResetCode.code) {
-      await incrementAttempts(passwordResetCode.id);
       throw new BadRequestException(invalidDataMsg);
     }
-    // All checks passed
-    await this.usersService.update(user.id, { password: dto.password });
-    await this.passwordResetCodeRepository.remove(passwordResetCode);
-    await this.logoutAll(user.id);
+    // Updating password => login
+    await this.usersService.update(userEntity.id, {
+      password: dto.password,
+    });
+    await this.passwordResetCodeRepository.remove(codeEntity);
+    await this.logoutAll(userEntity.id);
 
-    return this.login(user, sessionInfo);
+    return this.login(userEntity, sessionInfo);
   }
 
   async validateCredentials(email: string, password: string) {
