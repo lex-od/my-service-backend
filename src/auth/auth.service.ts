@@ -37,6 +37,7 @@ export class AuthService {
   private readonly verificationMaxAttempts = 5;
   private readonly refreshPepper: string;
   private readonly refreshExpiresInMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+  private readonly sendingCodeRetryAfterMs = 60 * 1000; // 1 minute
   private readonly passwordResetCodeExpiresInMs = 10 * 60 * 1000; // 10 minutes
 
   constructor(
@@ -180,23 +181,35 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const codeSentMsg = 'If the email exists, a code has been sent';
 
-    const user = await this.usersService.findOneByEmail(dto.email, {
+    // Checking user existence
+    const userEntity = await this.usersService.findOneByEmail(dto.email, {
       silent: true,
     });
-    if (!user) {
+    if (!userEntity) {
       return { message: codeSentMsg };
     }
-    await this.passwordResetCodeRepository.delete({
-      user: { id: user.id },
+    // Checking code existence
+    const codeEntity = await this.passwordResetCodeRepository.findOneBy({
+      user: { id: userEntity.id },
     });
+    if (codeEntity) {
+      // Checking code expiration
+      const passedTimeMs = Date.now() - codeEntity.createdAt.getTime();
+
+      if (passedTimeMs < this.sendingCodeRetryAfterMs) {
+        return { message: codeSentMsg };
+      }
+      await this.passwordResetCodeRepository.delete({ id: codeEntity.id });
+    }
+    // Sending new code
     const code = generateSixDigitsCode();
 
     await this.passwordResetCodeRepository.save({
-      user: { id: user.id },
+      user: { id: userEntity.id },
       code,
       expiresAt: new Date(Date.now() + this.passwordResetCodeExpiresInMs),
     });
-    await this.mailService.sendPasswordResetCode(user.email, code);
+    await this.mailService.sendPasswordResetCode(userEntity.email, code);
 
     return { message: codeSentMsg };
   }
