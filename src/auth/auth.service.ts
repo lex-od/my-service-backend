@@ -34,10 +34,10 @@ export interface SessionInfo {
 @Injectable()
 export class AuthService {
   private readonly verificationCodeExpiresInMs = 30 * 60 * 1000; // 30 minutes
+  private readonly sendingCodeRetryAfterMs = 60 * 1000; // 1 minute
   private readonly inputCodeMaxAttempts = 5;
   private readonly refreshPepper: string;
   private readonly refreshExpiresInMs = 30 * 24 * 60 * 60 * 1000; // 30 days
-  private readonly sendingCodeRetryAfterMs = 60 * 1000; // 1 minute
   private readonly passwordResetCodeExpiresInMs = 10 * 60 * 1000; // 10 minutes
 
   constructor(
@@ -103,50 +103,39 @@ export class AuthService {
   }
 
   async verifyEmail(dto: VerifyEmailDto, sessionInfo: SessionInfo) {
-    const incrementAttempts = (verificationCodeId: number) => {
-      return this.verificationCodeRepository.increment(
-        { id: verificationCodeId },
-        'attempts',
-        1,
-      );
-    };
-    const invalidDataMsg = 'Please check your verification data';
+    const invalidDataMsg = 'Invalid email or registration code';
 
     // Checking user existence, verification status
-    const user = await this.usersService.findOneByEmail(dto.email, {
+    const userEntity = await this.usersService.findOneByEmail(dto.email, {
       silent: true,
     });
-    if (!user || user.isVerified) {
+    if (!userEntity || userEntity.isVerified) {
       throw new BadRequestException(invalidDataMsg);
     }
     // Checking code existence
-    const verificationCode = await this.verificationCodeRepository.findOne({
-      where: {
-        user: { id: user.id },
-      },
+    const codeEntity = await this.verificationCodeRepository.findOneBy({
+      user: { id: userEntity.id },
     });
-    if (!verificationCode) {
+    if (!codeEntity) {
       throw new BadRequestException(invalidDataMsg);
     }
-    // Checking code expiration and max attempts
-    if (
-      new Date() > verificationCode.expiresAt ||
-      verificationCode.attempts >= this.inputCodeMaxAttempts
-    ) {
-      await incrementAttempts(verificationCode.id);
-      throw new BadRequestException(
-        'Code expired or too many attempts. Please request a new one.',
+    // Checking code expiration, max attempts and code compliance
+    const isExpired = Date.now() > codeEntity.expiresAt.getTime();
+    const isTooManyAttempts = codeEntity.attempts >= this.inputCodeMaxAttempts;
+    const isMatch = dto.code === codeEntity.code;
+
+    if (isExpired || isTooManyAttempts || !isMatch) {
+      await this.verificationCodeRepository.increment(
+        { id: codeEntity.id },
+        'attempts',
+        1,
       );
-    }
-    // Checking code compliance
-    if (dto.code !== verificationCode.code) {
-      await incrementAttempts(verificationCode.id);
       throw new BadRequestException(invalidDataMsg);
     }
-    // All checks passed
-    await this.usersService.update(user.id, { isVerified: true });
-    await this.verificationCodeRepository.remove(verificationCode);
-    return this.login(user, sessionInfo);
+    // Updating verification status => login
+    await this.usersService.update(userEntity.id, { isVerified: true });
+    await this.verificationCodeRepository.remove(codeEntity);
+    return this.login(userEntity, sessionInfo);
   }
 
   async login(user: User, sessionInfo: SessionInfo) {
