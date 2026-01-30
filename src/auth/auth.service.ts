@@ -58,32 +58,47 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const existingUser = await this.usersService.findOneByEmail(dto.email, {
+    const userEntity = await this.usersService.findOneByEmail(dto.email, {
       silent: true,
     });
-    if (existingUser) {
+    if (userEntity) {
       throw new ConflictException('User with this email already exists');
     }
-    const newUser = await this.usersService.create(dto);
-    await this.generateAndSendVerificationCode(newUser);
+    const newUserEntity = await this.usersService.create(dto);
+    await this.generateAndSendVerificationCode(newUserEntity);
     return {
-      message: 'Success. Please check your email for verification code.',
+      message: 'Check your email for verification code',
     };
   }
 
   async resendVerificationCode(email: string) {
-    const user = await this.usersService.findOneByEmail(email, {
+    const codeSentMsg =
+      'If the user exists and is not verified, a code has been sent';
+
+    // Checking user existence and verification status
+    const userEntity = await this.usersService.findOneByEmail(email, {
       silent: true,
     });
-    if (!user || user.isVerified) {
-      throw new BadRequestException('User not found or already verified');
+    if (!userEntity || userEntity.isVerified) {
+      return { message: codeSentMsg };
     }
-    await this.verificationCodeRepository.delete({
-      user: { id: user.id },
+    // Checking code existence
+    const codeEntity = await this.verificationCodeRepository.findOneBy({
+      user: { id: userEntity.id },
     });
-    await this.generateAndSendVerificationCode(user);
+    if (codeEntity) {
+      // Checking if the retry time passed
+      const passedTimeMs = Date.now() - codeEntity.createdAt.getTime();
+
+      if (passedTimeMs < this.sendingCodeRetryAfterMs) {
+        return { message: codeSentMsg };
+      }
+      await this.verificationCodeRepository.remove(codeEntity);
+    }
+    // Sending new code
+    await this.generateAndSendVerificationCode(userEntity);
     return {
-      message: 'Code sent. Please check your email.',
+      message: codeSentMsg,
     };
   }
 
