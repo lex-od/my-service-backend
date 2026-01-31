@@ -19,7 +19,7 @@ import {
   hashRefreshToken,
 } from './auth.utils';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { VerificationCode } from './entities/verification-code.entity';
+import { RegistrationCode } from './entities/registration-code.entity';
 import { PasswordResetCode } from './entities/password-reset-code.entity';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -41,8 +41,8 @@ export class AuthService {
   private readonly passwordResetCodeExpiresInMs = 10 * 60 * 1000; // 10 minutes
 
   constructor(
-    @InjectRepository(VerificationCode)
-    private verificationCodeRepository: Repository<VerificationCode>,
+    @InjectRepository(RegistrationCode)
+    private verificationCodeRepository: Repository<RegistrationCode>,
     @InjectRepository(RefreshToken)
     private refreshTokenRepository: Repository<RefreshToken>,
     @InjectRepository(PasswordResetCode)

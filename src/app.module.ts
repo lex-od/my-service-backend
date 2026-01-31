@@ -11,7 +11,7 @@ import { Company } from './companies/entities/company.entity';
 import { Service } from './services/entities/service.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { AuthModule } from './auth/auth.module';
-import { VerificationCode } from './auth/entities/verification-code.entity';
+import { RegistrationCode } from './auth/entities/registration-code.entity';
 import { MailModule } from './mail/mail.module';
 import { PasswordResetCode } from './auth/entities/password-reset-code.entity';
 
@@ -37,7 +37,7 @@ import { PasswordResetCode } from './auth/entities/password-reset-code.entity';
             Company,
             Service,
             RefreshToken,
-            VerificationCode,
+            RegistrationCode,
             PasswordResetCode,
           ],
           synchronize: nodeEnv === 'local',

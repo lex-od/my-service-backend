@@ -10,14 +10,14 @@ import { AuthController } from './auth.controller';
 import { LocalStrategy } from './local';
 import { JwtStrategy } from './jwt';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { VerificationCode } from './entities/verification-code.entity';
+import { RegistrationCode } from './entities/registration-code.entity';
 import { PasswordResetCode } from './entities/password-reset-code.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       RefreshToken,
-      VerificationCode,
+      RegistrationCode,
       PasswordResetCode,
     ]),
     PassportModule,
