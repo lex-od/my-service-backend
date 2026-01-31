@@ -154,28 +154,31 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string, sessionInfo: SessionInfo) {
-    // Validation
-    const hash = hashRefreshToken(refreshToken, this.refreshPepper);
-    const entity = await this.refreshTokenRepository.findOne({
-      where: { tokenHash: hash },
+    const invalidTokenMsg = 'Invalid refresh token';
+
+    // Checking refresh token existence
+    const refreshHash = hashRefreshToken(refreshToken, this.refreshPepper);
+    const refreshEntity = await this.refreshTokenRepository.findOne({
+      where: { tokenHash: refreshHash },
       relations: { user: true },
     });
-    if (!entity) {
-      throw new UnauthorizedException('Invalid refresh token');
+    if (!refreshEntity) {
+      throw new UnauthorizedException(invalidTokenMsg);
     }
-    const { user, expiresAt } = entity;
-    await this.refreshTokenRepository.delete({ id: entity.id });
+    const { user, expiresAt } = refreshEntity;
+    await this.refreshTokenRepository.remove(refreshEntity);
 
-    if (expiresAt.getTime() < Date.now()) {
-      throw new UnauthorizedException('Invalid refresh token');
+    // Checking refresh token expiration
+    if (Date.now() > expiresAt.getTime()) {
+      throw new UnauthorizedException(invalidTokenMsg);
     }
-    // Refresh token is valid
+    // Login
     return this.login(user!, sessionInfo);
   }
 
   async logout(refreshToken: string) {
-    const hash = hashRefreshToken(refreshToken, this.refreshPepper);
-    await this.refreshTokenRepository.delete({ tokenHash: hash });
+    const refreshHash = hashRefreshToken(refreshToken, this.refreshPepper);
+    await this.refreshTokenRepository.delete({ tokenHash: refreshHash });
   }
 
   async logoutAll(userId: number) {
