@@ -21,7 +21,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     const { error } = await this.resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'noreply@contact.mytime.com.ua',
       to: email,
       subject: `Ваш код підтвердження: ${code}`,
       html,
@@ -38,7 +38,7 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     const { error } = await this.resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'noreply@contact.mytime.com.ua',
       to: email,
       subject: `Скидання пароля: ${code}`,
       html,
