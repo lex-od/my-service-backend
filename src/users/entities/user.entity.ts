@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
 import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
-import { RegistrationCode } from 'src/auth/entities/registration-code.entity';
+import { EmailVerificationCode } from 'src/auth/entities/email-verification-code.entity';
 
 @Entity('users')
 @Unique('users_email_key', ['email'])
@@ -31,6 +31,6 @@ export class User {
   @OneToMany(() => RefreshToken, (rt) => rt.user)
   refreshTokens?: RefreshToken[];
 
-  @OneToOne(() => RegistrationCode, (rc) => rc.user)
-  registrationCode?: RegistrationCode;
+  @OneToOne(() => EmailVerificationCode, (rc) => rc.user)
+  emailVerificationCode?: EmailVerificationCode;
 }

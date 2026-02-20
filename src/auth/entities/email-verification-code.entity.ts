@@ -10,11 +10,11 @@ import {
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 
-@Entity('registration_codes')
-@Unique('registration_codes_user_id_key', ['user'])
-export class RegistrationCode {
+@Entity('email_verification_codes')
+@Unique('email_verification_codes_user_id_key', ['user'])
+export class EmailVerificationCode {
   @PrimaryGeneratedColumn({
-    primaryKeyConstraintName: 'registration_codes_pkey',
+    primaryKeyConstraintName: 'email_verification_codes_pkey',
   })
   id: number;
 
@@ -33,10 +33,10 @@ export class RegistrationCode {
   @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({
     name: 'user_id',
-    foreignKeyConstraintName: 'registration_codes_user_id_fkey',
+    foreignKeyConstraintName: 'email_verification_codes_user_id_fkey',
   })
   user?: User;
 
-  @RelationId((vc: RegistrationCode) => vc.user)
+  @RelationId((vc: EmailVerificationCode) => vc.user)
   userId: number;
 }

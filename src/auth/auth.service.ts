@@ -19,7 +19,7 @@ import {
   hashRefreshToken,
 } from './auth.utils';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { RegistrationCode } from './entities/registration-code.entity';
+import { EmailVerificationCode } from './entities/email-verification-code.entity';
 import { PasswordResetCode } from './entities/password-reset-code.entity';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -41,8 +41,8 @@ export class AuthService {
   private readonly passwordResetCodeExpiresInMs = 10 * 60 * 1000; // 10 minutes
 
   constructor(
-    @InjectRepository(RegistrationCode)
-    private verificationCodeRepository: Repository<RegistrationCode>,
+    @InjectRepository(EmailVerificationCode)
+    private emailVerificationCodeRepository: Repository<EmailVerificationCode>,
     @InjectRepository(RefreshToken)
     private refreshTokenRepository: Repository<RefreshToken>,
     @InjectRepository(PasswordResetCode)
@@ -83,7 +83,7 @@ export class AuthService {
       return { message: codeSentMsg };
     }
     // Checking code existence
-    const codeEntity = await this.verificationCodeRepository.findOneBy({
+    const codeEntity = await this.emailVerificationCodeRepository.findOneBy({
       user: { id: userEntity.id },
     });
     if (codeEntity) {
@@ -93,7 +93,7 @@ export class AuthService {
       if (passedTimeMs < this.sendingCodeRetryAfterMs) {
         return { message: codeSentMsg };
       }
-      await this.verificationCodeRepository.remove(codeEntity);
+      await this.emailVerificationCodeRepository.remove(codeEntity);
     }
     // Sending new code
     await this.generateAndSendVerificationCode(userEntity);
@@ -113,7 +113,7 @@ export class AuthService {
       throw new BadRequestException(invalidDataMsg);
     }
     // Checking code existence
-    const codeEntity = await this.verificationCodeRepository.findOneBy({
+    const codeEntity = await this.emailVerificationCodeRepository.findOneBy({
       user: { id: userEntity.id },
     });
     if (!codeEntity) {
@@ -125,7 +125,7 @@ export class AuthService {
     const isMatch = dto.code === codeEntity.code;
 
     if (isExpired || isTooManyAttempts || !isMatch) {
-      await this.verificationCodeRepository.increment(
+      await this.emailVerificationCodeRepository.increment(
         { id: codeEntity.id },
         'attempts',
         1,
@@ -134,7 +134,7 @@ export class AuthService {
     }
     // Updating verification status => login
     await this.usersService.update(userEntity.id, { isVerified: true });
-    await this.verificationCodeRepository.remove(codeEntity);
+    await this.emailVerificationCodeRepository.remove(codeEntity);
     return this.login(userEntity, sessionInfo);
   }
 
@@ -281,7 +281,7 @@ export class AuthService {
   private async generateAndSendVerificationCode(user: User) {
     const code = generateSixDigitsCode();
 
-    await this.verificationCodeRepository.save({
+    await this.emailVerificationCodeRepository.save({
       user: { id: user.id },
       code,
       expiresAt: new Date(Date.now() + this.verificationCodeExpiresInMs),
