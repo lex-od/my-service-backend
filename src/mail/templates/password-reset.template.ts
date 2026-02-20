@@ -16,7 +16,7 @@ export const passwordResetTemplate = ({
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Скидання пароля</title>
+      <title>Скидання пароля - MyTime</title>
     </head>
     <body style="font-family: sans-serif; background-color: #FCF9F9; padding: 20px; margin: 0;">
       <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -25,12 +25,13 @@ export const passwordResetTemplate = ({
             <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #FFFFFF; border-radius: 20px; padding: 40px; box-shadow: 0 4px 24px -4px rgba(222, 44, 78, 0.12);">
               <tr>
                 <td align="center" style="padding-bottom: 20px;">
+                  <span style="display: block; font-size: 24px; font-weight: bold; color: #DE2C4E; letter-spacing: 2px; margin-bottom: 10px;">MyTime</span>
                   <h1 style="color: #383232; margin: 0; font-size: 24px; font-weight: bold;">Скидання пароля</h1>
                 </td>
               </tr>
               <tr>
                 <td style="color: #797171; font-size: 16px; line-height: 24px; text-align: center; padding-bottom: 30px;">
-                  Ви запросили скидання пароля для акаунту <b>${email}</b>.<br>
+                  Ви запросили скидання пароля для акаунту <b>${email}</b> у <b>MyTime</b>.<br>
                   Ваш код підтвердження:
                 </td>
               </tr>

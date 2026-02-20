@@ -21,9 +21,10 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     const { error } = await this.resend.emails.send({
-      from: 'noreply@mail.mytime.com.ua',
+      from: 'MyTime Info <info@mail.mytime.com.ua>',
       to: email,
-      subject: `Ваш код підтвердження: ${code}`,
+      replyTo: 'MyTime Support <esinru@gmail.com>',
+      subject: `Код підтвердження MyTime: ${code}`,
       html,
     });
     if (error) {
@@ -38,9 +39,10 @@ export class MailService {
       frontendUrl: this.frontendUrl,
     });
     const { error } = await this.resend.emails.send({
-      from: 'noreply@mail.mytime.com.ua',
+      from: 'MyTime Info <info@mail.mytime.com.ua>',
       to: email,
-      subject: `Скидання пароля: ${code}`,
+      replyTo: 'MyTime Support <esinru@gmail.com>',
+      subject: `Скидання пароля MyTime: ${code}`,
       html,
     });
     if (error) {
