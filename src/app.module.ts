@@ -23,8 +23,6 @@ import { PasswordResetCode } from './auth/entities/password-reset-code.entity';
     }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => {
-        const nodeEnv = configService.get('NODE_ENV') as string;
-
         return {
           type: 'postgres',
           host: configService.get('DB_HOST'),
@@ -40,7 +38,7 @@ import { PasswordResetCode } from './auth/entities/password-reset-code.entity';
             EmailVerificationCode,
             PasswordResetCode,
           ],
-          synchronize: nodeEnv === 'local',
+          synchronize: configService.get('DB_SYNC') === 'true',
         };
       },
       inject: [ConfigService],
